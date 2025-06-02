@@ -1,0 +1,128 @@
+Table
+
+-------- USER ----------
+--- user table ----
+userId          - int primary key         - auto generated
+firstName       - varchar                 - required
+lastName        - varchar                 - required
+userName        - varchar                 - required
+password        - varchar                 - required
+email           - varchar                 - required
+userType        - enum                    - (superadmin,admin,supervisor,staff)
+dateCreated     - timestamp               - auto generated
+dateStausChange - timestamp               - this will be filled when status change 
+isActive        - tiny int default 1      - auto genrated
+
+
+------- PRODUCT --------
+--menu table
+menutId         - int                      - auto generated
+menuName        - text                     - required
+logo            - blob                     - (optional)
+productTypeId   - int                      - refered to the product type table
+price           - double                   - required 
+dateCreated     - timestamp                - auto generated 
+dateUpdated     - timestamp                - this will be filled when one of the field change
+dateStausChange - timestamp                - this will be filled when status change 
+isActive        - tiny int default 1       - auto genrated
+
+---product type table // this table will be link to the product table using its productTypeId
+productTypeId   - int                       - auto generated
+productType     - varchar                   - required     
+dateCreated     - timestamp                 - auto generated
+isActive        - tinint default 1          - auto generated
+
+
+--- suppliers
+supplierId          - int                    - auto generated
+companyName         - varchar                - required
+companyLogo         - blob                   - (optional)
+supplierAddress     - varchar                - required
+supplierContact     - varchar                - required
+dateCreated         - timestamp              - auto generated
+dateUpdated         - timestamp              - auto generated upon update    
+description         - text                   - optional
+isActive            - tinint default 1       - auto generated on the first insert
+
+--- product
+productId           - int               - auto generated
+productName         - varchar           - required
+price               - double            - required
+discounted_price    - double            - required
+quantity            - int               - required
+supplierId          - int               - from the suppliers table 
+productypeId        - int               - from the product type table 
+dateCreated         - timestamp         - auto generated
+dateUpdated         - timestamp         - auto generated upon update
+dateVoid            - timestamp         - auto generated upon update
+description         - text              - optional
+storeid             - int               - from the store table 
+barCode             - text              - unique from the onhand product required
+expirationDate      - timestamp         - from the onhand product required
+isActive            - tinint default 1  - auto generated on the first insert
+
+--- store
+storeid             - int               - auto generated
+storeName           - varchar           - required
+contact             - varchar           - required
+address             - varchar           - required
+email               - varchar           - required
+isActive            - tinint default 1  - auto generated on the first insert
+
+
+
+-- usedProduct
+userProductId       - int               - auto generated
+productId           - int               - from the product table 
+quantity            - int               - required
+dataCreated         - timestamp          - from the onhand usedProduct required
+isActive            - tinint default 1  - auto generated on the first insert
+
+--- transaction
+transactionid       - int               - auto generated 
+transactionDate     - timestamp         - auto generated upon added 
+data                - text              - object data of menu selected  
+discount            - double            - default 0
+total_price         - int               - total data amount 
+userid              - int               - user transacted
+isActive            - tinyint           - default 1
+
+
+sample transaction data
+
+{
+    "menuId":{
+        "menuName":"menuName"
+        "price":"price"
+    },
+    "menuId":{
+        "menuName":"menuName"
+        "price":"price"
+    },
+    "menuId":{
+        "menuName":"menuName"
+        "price":"price"
+    },
+}
+
+
+
+
+
+
+
+
+
+
+inventory 
+SELECT SUM(products.quantity),product_type.productType,products.barCode
+FROM products
+LEFT JOIN product_type ON product_type.productTypeId = products.productTypeId
+GROUP BY products.barCode
+stocks
+SELECT product_type.productType,SUM(products.quantity) as 'quantity',products.barCode,products.expirationDate
+FROM products
+LEFT JOIN product_type ON product_type.productTypeId = products.productTypeId
+GROUP BY products.barCode
+
+

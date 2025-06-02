@@ -1,0 +1,64 @@
+language: php
+dist: xenial
+os: linux
+php:
+  - 5.6
+  - 7.0
+  - 7.1
+  - 7.2
+  - 7.3
+  - 7.4
+  - nightly
+
+cache:
+  directories:
+    - $HOME/.composer/cache
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq postfix
+
+install:
+  - composer install --no-interaction
+  - if [ "$CODE_COVERAGE" != 1 ]; then phpenv config-rm xdebug.ini || true; fi
+
+before_script:
+  - sudo service postfix stop
+  - smtp-sink -d "%d.%H.%M.%S" localhost:2500 1000 &
+  - mkdir -p build/logs
+  - cp test/testbootstrap-dist.php test/testbootstrap.php
+  - chmod +x test/fakesendmail.sh
+  - sudo mkdir -p /var/qmail/bin
+  - sudo cp test/fakesendmail.sh /var/qmail/bin/sendmail
+  - sudo cp test/fakesendmail.sh /usr/sbin/sendmail
+  - echo 'sendmail_path = "/usr/sbin/sendmail -t -i "' > $(php --ini|grep -m 1 "ini files in:"|cut -d ":" -f 2)/sendmail.ini
+
+script: ./vendor/bin/phpunit --configuration ./travis.phpunit.xml.dist
+
+after_script:
+  - if [ "$CODE_COVERAGE" = 1 ]; then wget https://scrutinizer-ci.com/ocular.phar; fi
+  - if [ "$CODE_COVERAGE" = 1 ]; then php ocular.phar code-coverage:upload --format=php-clover ../build/logs/clover.xml; fi
+
+stages:
+  - coding-standard
+  - test
+
+jobs:
+  allow_failures:
+    - php: nightly
+  include:
+    - stage: coding-standard
+      before_install:
+      before_script:
+      script: ./vendor/bin/phpcs -s
+      after_script:
+      php: 7.4
+      env: CS_CHECK=1
+    - stage: test
+    - php: 7.0
+    - php: 7.1
+    - php: 7.2
+    - php: 7.3
+    - php: 7.4
+      env: CODE_COVERAGE=1
+    - php: nightly
