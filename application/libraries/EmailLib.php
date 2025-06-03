@@ -15,14 +15,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             $config = [
                 'protocol'      => 'smtp',
                 'smtp_host'     =>'smtp.gmail.com',
-                'smtp_user'     =>'notificationbariliprimelending@gmail.com',
-                'smtp_pass'     =>'wuji mvst chmz yhaa',
+                'smtp_user'     =>'doitcebu@gmail.com',
+                'smtp_pass'     =>'eevr neue qktl pssn',
                 'smtp_port'     =>'465',
                 'validate'      =>'true',
                 'encrypt'       =>'ssl',
-                'from_name'     => 'Barili Prime Lending Corp.',
-                'from_email'    =>'notificationbariliprimelending@gmail.com',
-                'reply'         =>'notificationbariliprimelending@gmail.com',
+                'from_name'     => 'JOB BUDDY',
+                'from_email'    =>'no-reply@jobbuddy.com',
+                'reply'         =>'no-reply@jobbuddy.com',
             ];
             return $config;
         }
@@ -105,8 +105,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                     $send->addAttachment($file_tmp, $file_name);
                 }
             }
-
+            $send->AddEmbeddedImage(FCPATH . 'assets/img/logo.png', 'logoimg', 'logo.png');
             $send->Subject = $subject.' '.date("F d, Y H:i:s");
+            $body .= "<div style='margin-top:15px;'><img src='cid:logoimg' width='100' height='100' style='float-left'></div>";
             $send->Body = $body;
 
             if(!empty($cc)){
