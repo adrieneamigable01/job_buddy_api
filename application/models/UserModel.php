@@ -194,12 +194,47 @@
         return ($query->num_rows() > 0);
     }
 
+    // public function requestPasswordReset($email)
+    // {
+    //     $this->load->helper('string');
+
+    //     // Generate a unique secure token
+    //     $token = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+
+    //     $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+    //     $data = [
+    //         'email'      => $email,
+    //         'token'      => $token,
+    //         'expires_at' => $expires_at,
+    //         'used'       => 0,
+    //     ];
+
+    //     $this->db->insert('reset_password_requests', $data);
+
+    //     return $token;
+    // }
     public function requestPasswordReset($email)
     {
         $this->load->helper('string');
 
-        // Generate a unique secure token
-        $token = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        $token = null;
+        $maxAttempts = 10;
+        $attempt = 0;
+
+        do {
+            $token = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+
+            $this->db->where('token', $token);
+            $this->db->where('used', 0);
+            $this->db->where('expires_at >', date('Y-m-d H:i:s'));
+            $exists = $this->db->get('reset_password_requests')->num_rows() > 0;
+
+            $attempt++;
+            if ($attempt >= $maxAttempts) {
+                throw new Exception("Failed to generate a unique token after {$maxAttempts} attempts");
+            }
+        } while ($exists);
 
         $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
