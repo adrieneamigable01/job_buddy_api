@@ -481,6 +481,9 @@ class JobOfferModel extends CI_Model {
                     }
                 }
             }
+            if (count($rankedWithDetails) >= 10) {
+                break;
+            }
         }
 
         return $rankedWithDetails;
@@ -524,5 +527,177 @@ class JobOfferModel extends CI_Model {
             return false;  // Return false in case of an error.
         }
     }
+
+    public function getAllActiveCandidates()
+    {
+        $this->db->select('
+            students.student_id,
+            students.lastname,
+            students.firstname,
+            students.middlename,
+            students.user_id,
+            students.email,
+            students.phone,
+            students.address,
+            students.birthdate,
+            students.gender,
+            students.is_active,
+            students.created_at,
+            students.updated_at,
+            students.deleted_at,
+            students.skills,
+            students.prefere_available_time,
+            students.employment_type,
+            students.course_id,
+            courses.courses,
+            COUNT(DISTINCT experience.experience_id) as experience_count
+        ');
+        $this->db->from('students')
+            ->join('courses', 'students.course_id = courses.course_id', 'left')
+            ->join('experience', 'experience.student_id = students.student_id', 'left')
+            ->join('education', 'education.student_id = students.student_id', 'left')
+            ->where('students.is_active', 1)
+            ->group_by('students.student_id');
+
+        $query = $this->db->get();
+        $candidates = $query->result_array();
+
+        // Normalize and enrich candidate data
+        foreach ($candidates as &$candidate) {
+            // Normalize skills
+            if (is_string($candidate['skills'])) {
+                $decoded = json_decode($candidate['skills'], true);
+                if (is_array($decoded)) {
+                    $candidate['skills_array'] = $decoded;
+                } else {
+                    $candidate['skills_array'] = array_map('trim', explode(',', $candidate['skills']));
+                }
+            } else {
+                $candidate['skills_array'] = $candidate['skills'];
+            }
+
+            // Simulate job history
+            $candidate['employment_history'] = [];
+            for ($i = 0; $i < (int)$candidate['experience_count']; $i++) {
+                $candidate['employment_history'][] = [
+                    'position' => 'Job ' . ($i + 1),
+                    'skills_used' => ['PHP', 'JavaScript'], // Simulated
+                    'duration_months' => 6
+                ];
+            }
+        }
+
+        return $candidates;
+    }
+    // public function getRankedCandidatesForJobOffer($jobCriteria, $allCandidates)
+    // {
+    //     $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne'; // Replace with real key
+
+    //     $rankedCandidates = [];
+
+    //     foreach ($allCandidates as $candidate) {
+    //         $requiredSkills = isset($jobCriteria['students.skills']) 
+    //             ? array_map('trim', explode(',', $jobCriteria['students.skills'])) 
+    //             : [];
+
+    //         $candidateSkills = $candidate['skills_array'] ?? [];
+    //         $matchedSkills = array_intersect($requiredSkills, $candidateSkills);
+
+    //         $candidate['related_skills_score'] = count($requiredSkills) > 0 
+    //             ? round((count($matchedSkills) / count($requiredSkills)) * 100, 2) 
+    //             : 0;
+
+    //         $experienceScore = 0;
+    //         foreach ($candidate['employment_history'] as $job) {
+    //             $jobSkills = $job['skills_used'] ?? [];
+    //             if (array_intersect($requiredSkills, $jobSkills)) {
+    //                 $experienceScore++;
+    //             }
+    //         }
+    //         $candidate['related_experience_score'] = $experienceScore * 10;
+
+    //         $candidate['location_proximity_score'] = $this->getLocationProximityScore(
+    //             strtolower($jobCriteria['students.location'] ?? ''),
+    //             strtolower($candidate['address'] ?? '')
+    //         );
+
+    //         $rankedCandidates[] = $candidate;
+    //     }
+
+    //     return $this->rankCandidatesWithCohere($rankedCandidates, $jobCriteria, $apiKey);
+    // }
+    public function getRankedCandidatesForJobOffer($jobCriteria, $allCandidates)
+    {
+        $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne'; // Replace with real key
+
+        $filteredCandidates = [];
+        $requiredSkills = isset($jobCriteria['students.skills']) 
+            ? array_map('trim', explode(',', $jobCriteria['students.skills'])) 
+            : [];
+
+        foreach ($allCandidates as $candidate) {
+            // --- Skill Score ---
+            $candidateSkills = $candidate['skills_array'] ?? [];
+            $matchedSkills = array_intersect($requiredSkills, $candidateSkills);
+            $relatedSkillsScore = count($requiredSkills) > 0 
+                ? round((count($matchedSkills) / count($requiredSkills)) * 100, 2) 
+                : 0;
+
+            // --- Experience Score ---
+            $experienceScore = 0;
+            foreach ($candidate['employment_history'] as $job) {
+                $jobSkills = $job['skills_used'] ?? [];
+                if (array_intersect($requiredSkills, $jobSkills)) {
+                    $experienceScore++;
+                }
+            }
+            $relatedExperienceScore = $experienceScore * 10;
+
+            // --- Location Score ---
+            $locationProximityScore = $this->getLocationProximityScore(
+                strtolower($jobCriteria['students.location'] ?? ''),
+                strtolower($candidate['address'] ?? '')
+            );
+
+            // --- Total Match Score ---
+            $totalScore = round(($relatedSkillsScore + $relatedExperienceScore + $locationProximityScore) / 3, 2);
+
+            // Attach scores
+            $candidate['related_skills_score'] = $relatedSkillsScore;
+            $candidate['related_experience_score'] = $relatedExperienceScore;
+            $candidate['location_proximity_score'] = $locationProximityScore;
+            $candidate['total_match_score'] = $totalScore;
+
+            // Keep candidates with score ≥ 50
+            if ($totalScore >= 50) {
+                $filteredCandidates[] = $candidate;
+            }
+
+            // Stop early if we reach 10 valid candidates
+            if (count($filteredCandidates) >= 10) {
+                break;
+            }
+        }
+
+        // ✅ Fallback: If no one hit 50%, include the best ones (at least 1)
+        if (count($filteredCandidates) === 0 && count($allCandidates) > 0) {
+            // Sort all by total score and take top 1 or more
+            foreach ($allCandidates as &$candidate) {
+                if (!isset($candidate['total_match_score'])) {
+                    $candidate['total_match_score'] = 0; // Fallback value
+                }
+            }
+            usort($allCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
+            $filteredCandidates[] = $allCandidates[0]; // Always include at least one best candidate
+        }
+
+        // Optional: Sort before sending to AI
+        usort($filteredCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
+
+        return $this->rankCandidatesWithCohere($filteredCandidates, $jobCriteria, $apiKey);
+    }
+
+
+
 }
 ?>

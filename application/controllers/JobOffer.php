@@ -143,7 +143,7 @@ class JobOffer extends MY_Controller {
     //     $this->response->output($return); // Return the JSON encoded data
     // }
 
-    public function get() {
+    public function getold() {
         try {
             $headers = $this->input->request_headers();
             error_log(print_r($headers, true)); // Debugging: Log headers
@@ -269,7 +269,128 @@ class JobOffer extends MY_Controller {
         $this->response->output($return);
     }
     
-    
+    public function get()
+    {
+        try {
+            $headers = $this->input->request_headers();
+            $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+
+            if (strpos($token, 'Bearer ') === 0) {
+                $token = substr($token, 7);
+            }
+
+            $decoded = decode_jwt($token, $this->config->item('jwt_key'));
+            $userType = $decoded->data->user_type ?? null;
+            $userInfo = $decoded->data->user_information[0] ?? null;
+
+            $id = $this->input->get("id");
+            $is_active = $this->input->get("is_active");
+
+            $payload = [
+                'job_offers.is_active' => isset($is_active) ? $is_active : 1
+            ];
+
+            if (!empty($id)) {
+                $payload['id'] = $id;
+            }
+
+            if ($userType === "employer" && !empty($userInfo->employer_id)) {
+                $payload['job_offers.employer_id'] = $userInfo->employer_id;
+            }
+
+            // Get job offers
+            $jobOffers = $this->JobOfferModel->get($payload);
+
+            // EMPLOYER OR ADMIN VIEW
+            if ($userType === "employer" || $userType === "admin") {
+                // 🔁 Fetch all candidates once
+                $allCandidates = $this->JobOfferModel->getAllActiveCandidates();
+
+                foreach ($jobOffers as &$jobOffer) {
+                    $criteria = [
+                        'students.skills' => $jobOffer->skills,
+                        'students.employment_type' => $jobOffer->employment_type,
+                        'students.location' => $jobOffer->location
+                    ];
+
+                    // ⚙️ Use refactored function to score/reuse candidates
+                    $candidates = $this->JobOfferModel->getRankedCandidatesForJobOffer($criteria, $allCandidates);
+
+                    foreach ($candidates as &$candidate) {
+                        $education = $this->EducationModel->get(['education.student_id' => $candidate['student_id']]);
+                        $experience = $this->ExperienceModel->get(['experience.student_id' => $candidate['student_id']]);
+                        $sentOfferIds = $this->StudentJobOfferModel->hasBeenSent($candidate['student_id'], [$jobOffer->job_offers_id]);
+                        $offerData = $this->StudentJobOfferModel->getOfferStatus($candidate['student_id'], $jobOffer->job_offers_id);
+
+                        $candidate['education'] = $education;
+                        $candidate['experience'] = $experience;
+                        $candidate['has_job_offer'] = in_array($jobOffer->job_offers_id, $sentOfferIds);
+                        $candidate['job_offer_status'] = $offerData['status'] ?? null;
+
+                        $contract = $this->ContractModel->get([
+                            'job_offers_id' => $jobOffer->job_offers_id,
+                            'student_id' => $candidate['student_id']
+                        ], true);
+
+                        $candidate['contract'] = $contract ? $contract[0]->pdf_path : null;
+                        $candidate['contract_status'] = $contract ? $contract[0]->status : null;
+                    }
+
+                    $jobOffer->candidates = $candidates;
+                }
+
+            }
+            // STUDENT VIEW
+            elseif ($userType === "student" && !empty($userInfo->student_id)) {
+                $this->db->select('students.*, courses.courses');
+                $this->db->from('students');
+                $this->db->join('courses', 'students.course_id = courses.course_id', 'left');
+                $this->db->where('students.student_id', $userInfo->student_id);
+                $student = $this->db->get()->row_array();
+
+                if (!$student) {
+                    throw new Exception("Student not found");
+                }
+
+                $jobOffers = $this->JobOfferModel->get([
+                    'job_offers.is_active' => 1
+                ], 'array');
+
+                // AI RANKING (student to job offers)
+                $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne';
+                $rankedOffers = $this->JobOfferModel->rankJobOffersWithCohere($student, $jobOffers, $apiKey);
+                
+                foreach ($rankedOffers as &$offer) {
+                    $sentOfferIds = $this->StudentJobOfferModel->hasBeenSent($userInfo->student_id, [$offer['job_offers_id']]);
+                    $sentOffer = $this->StudentJobOfferModel->getOfferStatus($userInfo->student_id, $offer['job_offers_id']);
+
+                    $offer['has_job_offer'] = in_array($offer['job_offers_id'], $sentOfferIds);
+                    $offer['job_offer_status'] = $sentOffer['status'] ?? null;
+
+                    $contract = $this->ContractModel->get([
+                        'job_offers_id' => $offer['job_offers_id'],
+                        'student_id' => $userInfo->student_id
+                    ], true);
+
+                    $offer['contract'] = $contract ? $contract[0]->pdf_path : null;
+                }
+
+                $jobOffers = $rankedOffers; // replace output for student
+            }
+
+            $this->response->output([
+                'isError' => false,
+                'message' => 'Success',
+                'data' => $jobOffers,
+            ]);
+        } catch (Exception $e) {
+            $this->response->output([
+                'isError' => true,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
 
     public function create() {
         $transQuery = array();

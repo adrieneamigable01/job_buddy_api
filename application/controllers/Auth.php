@@ -22,6 +22,7 @@
             $this->load->model('UserActivityLogModel');
             $this->load->model('UserLogsModel');
             $this->load->library('Response',NULL,'response');
+            $this->load->library('EmailLib', NULL,'emaillib'); // Load your custom EmailLib library
            
         }
         /**
@@ -417,6 +418,135 @@
                 }
             }
         }
+
+
+        //reset password
+        public function request_password_reset()
+        {
+            // Get raw input
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+
+            if (!isset($data['email'])) {
+                $return = array(
+                    'isError' => true,
+                    'message'   =>'Email is required',
+                );
+                $this->response->output($return);return;
+            }
+
+            $email = $data['email'];
+
+            // Example: check user and create token
+            $user = $this->db->get_where('users', ['username' => $email])->row();
+            if (!$user) {
+               $return = array(
+                    'isError' => true,
+                    'message'   =>'User not found.',
+                );
+                $this->response->output($return);return;
+            }
+
+            $token = $this->UserModel->requestPasswordReset($email);
+            if($token){
+                $body = '
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <meta charset="UTF-8">
+                <title>Password Reset Token</title>
+                </head>
+                <body style="font-family: Arial, sans-serif; background-color: #f5f8fa; margin: 0; padding: 0;">
+                <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    <h2 style="color: #1F94D4;">Password Reset Request</h2>
+                    <p>Hello,</p>
+                    <p>You recently requested to reset your password. Use the token below to proceed:</p>
+
+                    <div style="font-size: 22px; font-weight: bold; color: #1F94D4; background-color: #f0f4f8; padding: 12px 20px; border-radius: 6px; text-align: center; letter-spacing: 1px;">
+                    ' . $token . '
+                    </div>
+
+                    <p style="margin-top: 20px;">This token will expire in 1 hour and can only be used once.</p>
+                    <p>If you did not request a password reset, please ignore this email.</p>
+
+                    <p style="margin-top: 30px; font-size: 12px; color: #999;">&mdash; Job Buddy Team</p>
+                </div>
+                </body>
+                </html>';
+
+
+
+                $emailSent = $this->emaillib->sendEmail($body, $email, "Job Offer Notification");
+                if ($emailSent) {
+                    $return = [
+                        'isError' => false,
+                        'message' => 'Successfuly Send Reset Password.',
+                        'data' => $email
+                    ];
+                } else {
+                    $return = [
+                        'isError' => false,
+                        'message' => 'Error.',
+                        'data' => $email
+                    ];
+                }
+            }
+            $this->response->output($return);return;
+        }
+
+         public function reset_password_with_token()
+        {
+
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            $email = $input['email'] ?? null;
+            $token = $input['token'] ?? null;
+            $newPassword = $input['new_password'] ?? null;
+
+            if (!$email || !$token || !$newPassword) {
+                $return = array(
+                    'isError' => true,
+                    'message'   =>'Missing required fields.',
+                );
+                $this->response->output($return);return;
+            }
+
+            // Validate token
+            $request = $this->UserModel->get_valid_request($email, $token);
+
+            if (!$request) {
+                $return = array(
+                    'isError' => true,
+                    'message'   =>'Invalid or expired token.',
+                );
+                $this->response->output($return);return;
+            }
+
+            // Hash new password
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            // Update password
+            $updated = $this->UserModel->update_password_by_email($email, $hashedPassword);
+
+            if (!$updated) {
+                $return = array(
+                    'isError' => true,
+                    'message'   =>'Failed to update password',
+                );
+                $this->response->output($return);return;
+            }
+
+            // Mark token as used
+            $this->UserModel->mark_token_as_used($request['id']);
+            $return = array(
+                'isError' => false,
+                'message'   =>'Password reset successful',
+            );
+            $this->response->output($return);
+        }
+
+
     }
     
 ?>

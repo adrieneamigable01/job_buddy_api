@@ -193,6 +193,51 @@
         // If any rows are returned, the student_id exists
         return ($query->num_rows() > 0);
     }
+
+    public function requestPasswordReset($email)
+    {
+        $this->load->helper('string');
+
+        // Generate a unique secure token
+        $token = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+
+        $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+        $data = [
+            'email'      => $email,
+            'token'      => $token,
+            'expires_at' => $expires_at,
+            'used'       => 0,
+        ];
+
+        $this->db->insert('reset_password_requests', $data);
+
+        return $token;
+    }
+    public function get_valid_request($email, $token)
+    {
+        $this->db->where('email', $email);
+        $this->db->where('token', $token);
+        $this->db->where('used', 0);
+        $this->db->where('expires_at >=', date('Y-m-d H:i:s'));
+        $query = $this->db->get('reset_password_requests');
+        return $query->row_array();
+    }
+
+    public function mark_token_as_used($id)
+    {
+        $this->db->where('id', $id);
+        $this->db->update('reset_password_requests', ['used' => 1]);
+    }
+
+    public function update_password_by_email($email, $hashedPassword)
+    {
+        $this->db->where('username', $email); // assuming username is email
+        return $this->db->update('users', [
+            'password' => $hashedPassword,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
    
  }
 ?>
