@@ -45,6 +45,7 @@ class JobOfferModel extends CI_Model {
             job_offers.location,
             job_offers.min_salary,
             job_offers.max_salary,
+            employer.user_id,
             CONCAT(job_offers.min_salary," - ",job_offers.max_salary) as salary_range,
             job_offers.employer_id,
             job_offers.job_description,
@@ -60,6 +61,7 @@ class JobOfferModel extends CI_Model {
         ');
         $this->db->from('job_offers');
         $this->db->join('company', 'job_offers.company_id = company.company_id', 'left'); // Left join to fetch admin details
+        $this->db->join('employer', 'employer.employer_id  = job_offers.employer_id', 'left'); // Left join to fetch admin details
         $this->db->where($payload);
         $query = $this->db->get();
         if($resultType == "array"){

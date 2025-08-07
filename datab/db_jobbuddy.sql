@@ -241,7 +241,7 @@ CREATE TABLE `company` (
 --
 
 INSERT INTO `company` (`company_id`, `employer_id`, `company_name`, `company_address`, `contact_number`, `established_date`, `email`, `company_logo`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 1, 'Vinaro', 'Cebu', '09154520173', '2025-04-01', 'adrienecarreamigable01@gmail.com', 0x6e756c6c, 1, '2025-06-01 00:00:00', NULL, NULL);
+(1, 1, 'Vinaro', 'Cebu', '09154520173', '2025-04-01', 'company@gmail.com', 0x6e756c6c, 1, '2025-06-01 00:00:00', NULL, NULL);
 
 -- --------------------------------------------------------
 

@@ -12,6 +12,9 @@ class UserLogsModel extends CI_Model {
         // Ensure all required fields are included in the payload before inserting.
         return $this->db->insert('user_logs',$payload); // Table name 'user_logs'
     }
+    public function add_query($payload) {
+         return $this->db->set($payload)->get_compiled_insert('user_logs'); // Table name 'company'
+    }
     // Get logs based on filters
     public function get($payload) {
         // Select the fields you need from the user_logs table.

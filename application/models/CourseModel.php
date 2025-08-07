@@ -1,10 +1,5 @@
 <?php
-/**
- * Course Model
- * Author: Adriene Care Llanos Amigable <adrienecarreamigable01@gmail.com>
- * Date Created: 3/12/2025
- * Version: 1.0.0
- */
+
 class CourseModel extends CI_Model {
 
     // Add a new course

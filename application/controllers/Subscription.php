@@ -6,8 +6,8 @@
 
 class Subscription extends CI_Controller {
 
-    private $clientId = 'test';
-    private $secret = 'tes';
+    private $clientId = 'ARgFKO-t5JBRxeC_jobhrsQHPisXsjKSpbJCWYBrPFCCNY4EqU8qP49xhLHMYFbJKQpXcWwZssQt7_iY';
+    private $secret = 'EJJaRZ-BRvNgM_0Ul5gA9lxHK8jF2J8c8tg3Grlh_HfsLO0h75LFpHtTAsvBfaeYwoI3EjojlM_JXlRi';
     private $baseUrl = 'https://api-m.sandbox.paypal.com'; // Change to live for production
 
     public function __construct() {
@@ -17,6 +17,7 @@ class Subscription extends CI_Controller {
         $this->load->model('UserActivityLogModel'); // Make sure this model exists
         $this->load->model('UserModel'); // Make sure this model exists
         $this->load->library('Response', NULL, 'response');
+        $this->load->library('EmailLib', NULL,'emaillib'); // Load your custom EmailLib library
         // $this->load->library('Stripe_lib');
 
 
@@ -143,12 +144,12 @@ class Subscription extends CI_Controller {
 
                 $user_activity_query = $this->UserActivityLogModel->add($user_activity_data);
                 array_push($transQuery, $user_activity_query);
-
              
                 $result = array_filter($transQuery);
                 $res = $this->response->mysqlTQ($result);
 
                 if ($res) {
+                    $this->sendReceipt($user,$plan,$start_date,$end_date);
                     $return = array(
                         'isError' => false,
                         'message' => 'Subscription created successfully',
@@ -170,6 +171,70 @@ class Subscription extends CI_Controller {
 
         $this->response->output($return);
     }
+
+    public function sendReceipt($user,$plan,$start_date,$end_date)
+    {
+        $subscriberName = $user->firstname.' '.$user->lastname;
+        $body = '
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="UTF-8">
+            <title>Subscription Receipt</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f8fa; margin: 0; padding: 0;">
+            <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                <h2 style="color: #1F94D4; margin-bottom: 8px;">Subscription Receipt</h2>
+                <p>Hello ' . htmlspecialchars($subscriberName) . ',</p>
+                <p>Thank you for your subscription! Here are your receipt details:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                    <td style="padding: 8px; font-weight: bold;">Subscription ID:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->plan_id) . '</td>
+                </tr>
+                <tr style="background-color: #f0f4f8;">
+                    <td style="padding: 8px; font-weight: bold;">Plan Name:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->name) . '</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; font-weight: bold;">Amount Paid:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->price) . '</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; font-weight: bold;">Start Date:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($start_date) . '</td>
+                </tr>
+                <tr style="background-color: #f0f4f8;">
+                    <td style="padding: 8px; font-weight: bold;">Next Billing Date:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($end_date) . '</td>
+                </tr>
+                <tr style="background-color: #f0f4f8;">
+                    <td style="padding: 8px; font-weight: bold;">Max Companies:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->max_companies) . '</td>
+                </tr>
+                <tr style="background-color: #f0f4f8;">
+                    <td style="padding: 8px; font-weight: bold;">Max Posts:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->max_posts) . '</td>
+                </tr>
+                <tr style="background-color: #f0f4f8;">
+                    <td style="padding: 8px; font-weight: bold;">Description:</td>
+                    <td style="padding: 8px;">' . htmlspecialchars($plan->description) . '</td>
+                </tr>
+                </table>
+
+                <p>If you have any questions or didn’t authorize this payment, please contact our support.</p>
+                <p style="margin-top: 30px; font-size: 12px; color: #999;">&mdash; Job Offer Team</p>
+            </div>
+            </body>
+            </html>';
+
+
+
+
+        $this->emaillib->sendEmail($body, $user->username, "Job Buddy Subscription Receipt");
+    }
+    
     public function subscribe_free() {
         
         $transQuery = array();

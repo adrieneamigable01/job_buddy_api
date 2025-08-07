@@ -54,11 +54,12 @@ class SubscriptionModel extends CI_Model {
             IF(CURDATE() > subscriptions.end_date, 1, 0) AS is_expired
         ');
         $this->db->from('subscriptions');
-        $this->db->join('subscription_plans', 'subscriptions.plan_id = subscription_plans.id', 'left');
-        $this->db->where($payload);
-        if($filterExpired == 1){
-            $this->db->where('subscriptions.end_date >=', date('Y-m-d'));
+        $this->db->join('subscription_plans', 'subscriptions.plan_id = subscription_plans.plan_id', 'left');
+        if ($filterExpired == 1) {
+            $this->db->where('subscriptions.end_date >=', date('Y-m-d'), false);
         }
+        $this->db->where($payload); // this is fine for other key-value exact matches
+
         $query = $this->db->get();
         return $query->result();
     }

@@ -33,6 +33,7 @@ class UserDocumentsModel extends CI_Model {
             END AS fullname,
             user_documents.user_id,
             user_documents.document_type,
+            user_documents.base64Selfie,
             user_documents.status,
             user_documents.uploaded_at,
             user_documents.document_path,

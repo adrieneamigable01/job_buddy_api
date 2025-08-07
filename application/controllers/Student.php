@@ -1,8 +1,4 @@
 <?php
-/**
- * @author  Adriene Care Llanos Amigable <adrienecarreamigable01@gmail.com>
- * @version 0.1.0
- */
 
 class Student extends MY_Controller {
     /**

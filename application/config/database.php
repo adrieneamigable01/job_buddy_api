@@ -88,22 +88,6 @@ $parsed_url = parse_url($referrer);
 $calling_url = isset($parsed_url['host']) ? $parsed_url['host'] : 'Unknown';
 
 
-// if (strpos($calling_url, 'mikkostore') !== false) {
-// 	$hostname = 'adrienecarreamigable0115516.ipagemysql.com';
-// 	$datab = 'db_mikkostore';
-// 	$dbusername = 'mikkostore1';
-// 	$dbPassword = 'Thequick!123';
-// }else if(strpos($calling_url, 'mpjbuilders') !== false){
-// 	$hostname = 'adrienecarreamigable0115516.ipagemysql.com';
-// 	$datab = 'db_mpjbuilders';
-// 	$dbusername = 'mpjbuilders';
-// 	$dbPassword = 'mpjbuilders';
-// }else{
-// 	$hostname = 'localhost';
-// 	$datab = 'db_salesv1';
-// 	$dbusername = 'root';
-// 	$dbPassword = '';
-// }
 
 $db['default'] = array(
 	'dsn'	=> '',
@@ -127,28 +111,3 @@ $db['default'] = array(
 	'save_queries' => TRUE
 );
 
-// $db['default'] = array(
-// 	'dsn'	=> '',
-// 	// 'hostname' => 'adrienecarreamigable0115516.ipagemysql.com',
-// 	'hostname' => 'localhost',
-// 	// 'username' => 'coffe_shop',
-// 	// 'password' => 'Thequick_123',
-// 	'username' => 'root',
-// 	'password' => '',
-// 	// 'database' => 'db_coffeeshop',
-// 	'database' => 'db_salesv1',
-// 	'dbdriver' => 'mysqli',
-// 	'dbprefix' => '',
-// 	'pconnect' => FALSE,
-// 	'db_debug' => (ENVIRONMENT !== 'production'),
-// 	'cache_on' => FALSE,
-// 	'cachedir' => '',
-// 	'char_set' => 'utf8',
-// 	'dbcollat' => 'utf8_general_ci',
-// 	'swap_pre' => '',
-// 	'encrypt' => FALSE,
-// 	'compress' => FALSE,
-// 	'stricton' => FALSE,
-// 	'failover' => array(),
-// 	'save_queries' => TRUE
-// );

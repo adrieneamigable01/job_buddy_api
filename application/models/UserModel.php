@@ -170,6 +170,15 @@
         $this->db->where($where);
         return $this->db->set($payload)->get_compiled_update('users');
     }
+    public function update($payload,$where){
+        $this->db->where($where);
+        return $this->db->set($payload)->get_compiled_update('users');
+    }
+
+    function getUsersActiveToken($user_id){
+        $sql = "SELECT users.token FROM users WHERE users.user_id = '$user_id'";
+        return  $this->db->query($sql)->result();
+    }
 
     function generateuser_id($prefix = 'USER') {
         // Get the current timestamp (uniqueness based on time)

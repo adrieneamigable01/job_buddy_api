@@ -1,8 +1,5 @@
 <?php
-/**
- * @author  Adriene Care Llanos Amigable <adrienecarreamigable01@gmail.com>
- * @version 0.1.0
- */
+
 
 class JobOffer extends MY_Controller {
     /**
@@ -20,6 +17,7 @@ class JobOffer extends MY_Controller {
         $this->load->model('EmployerModel'); // Ensure you have created the NotificationModel
         $this->load->model('UserActivityLogModel'); // Ensure you have created the NotificationModel
         $this->load->model('ContractModel'); // Ensure you have created the NotificationModel
+        $this->load->model('SubscriptionModel'); // Ensure you have created the NotificationModel
         $this->load->library('Response', NULL, 'response');
         $this->load->library('EmailLib', NULL,'emaillib'); // Load your custom EmailLib library
     }
@@ -337,7 +335,18 @@ class JobOffer extends MY_Controller {
                     }
 
                     $jobOffer->candidates = $candidates;
+
+                    $payload_subsription = array(
+                        'subscriptions.user_id' => $jobOffer->user_id,
+                        'subscriptions.is_active' => 1,
+                    );
+
+                    $subscription_data = $this->SubscriptionModel->get($payload_subsription,1);
+                    $jobOffer->subscription = $subscription_data;
                 }
+                
+               
+
 
             }
             // STUDENT VIEW
@@ -373,6 +382,14 @@ class JobOffer extends MY_Controller {
                     ], true);
 
                     $offer['contract'] = $contract ? $contract[0]->pdf_path : null;
+                   
+                    $payload_subsription = array(
+                        'subscriptions.user_id' => $offer['user_id'],
+                        'subscriptions.is_active' => 1,
+                    );
+
+                    $subscription_data = $this->SubscriptionModel->get($payload_subsription,1);
+                    $offer['subscription'] = $subscription_data;
                 }
 
                 $jobOffers = $rankedOffers; // replace output for student

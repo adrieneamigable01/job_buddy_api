@@ -49,6 +49,7 @@ class UserDocuments extends MY_Controller {
             // Retrieve POST data
             $document_type = $data['document_type'];
             $document_path = $data['document_path'];  // Path to the document
+            $base64Selfie = $data['base64Selfie'];  // Path to the document
             $uploaded_at = date('Y-m-d H:i:s');  // Current timestamp for upload time
 
             // Validation checks
@@ -64,19 +65,29 @@ class UserDocuments extends MY_Controller {
                     'message' => 'Document type is required',
                 );
                 $this->response->output($return);return;
-            } else if (empty($document_path)) {
+            } 
+            else if (empty($document_path)) {
                 $return = array(
                     'isError' => true,
                     'message' => 'Document path is required',
                 );
                 $this->response->output($return);return;
-            } else {
+            } 
+            else if (empty($base64Selfie)) {
+                $return = array(
+                    'isError' => true,
+                    'message' => 'Selfie is required',
+                );
+                $this->response->output($return);return;
+            } 
+            else {
                 // Payload for inserting into the user_documents table
                 $payload = array(
                     'user_id' => $user_id,
                     'user_type' => $user_type,
                     'document_type' => $document_type,
                     'document_path' => $document_path,
+                    'base64Selfie' => $base64Selfie,
                     'uploaded_at' => $uploaded_at
                 );
                 // Call the model method to insert the document

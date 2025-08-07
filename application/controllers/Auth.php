@@ -1,10 +1,5 @@
 <?php
 
-   /**
-     * @author  Adriene Care Llanos Amigable <adrienecarreamigable01@gmail.com>
-     * @version 0.1.0
-    */ 
-
     class Auth extends CI_Controller{
         /**
             * Class constructor.
@@ -64,7 +59,7 @@
             */
             $data = json_decode(file_get_contents("php://input"), true);
         
-
+            $transQuery = array();
             $username = $data['username'] ?? '';
             $password = $data['password'] ?? '';
             $return   = array();
@@ -115,12 +110,7 @@
                             );
                        
                             
-                         
-                           
-                           
-
-                            
-    
+                        
                             if($authenticate[0]->user_type == "student"){
                                 $student_id = $this->input->get("student_id");
                                 $student_payload = array(
@@ -144,6 +134,7 @@
                                 $data['user_information'] = $employer_data;
                             }
 
+                            
 
                             $jwtpayload = array(
                                 "iss" => "job_buddy_api",
@@ -157,6 +148,25 @@
 
                             $data['token'] = $jwt;
 
+
+                            $updateUser = array(
+                                'token' => $jwt,
+                            );
+
+                            $sqlGetCurrentToken = $this->UserModel->getUsersActiveToken($authenticate[0]->user_id);
+                            if(sizeof($sqlGetCurrentToken) > 0){
+                                
+                                if($sqlGetCurrentToken[0]->token != ""){
+                                    $payload = array(
+                                        'token' => $sqlGetCurrentToken[0]->token,
+                                    );
+                                    $response = $this->AuthModel->addBlackListToken($payload);
+                                    array_push($transQuery, $response);
+                                }
+                            }
+
+                            $updateQuery = $this->UserModel->update($updateUser,array('user_id'=>$authenticate[0]->user_id));
+                            array_push($transQuery, $updateQuery);
                             if($authenticate[0]->user_type == "admin"){
                                 $payload = array(
                                     'user_id'  => $authenticate[0]->user_id,
@@ -166,19 +176,27 @@
                                 );
                 
                                 // Call the model method to insert the log
-                                $response = $this->UserLogsModel->add($payload);
+                                $response = $this->UserLogsModel->add_query($payload);
+                                array_push($transQuery, $response);
                             }
-
-                            $return = array(
-                                'isError'     => false,
-                                // 'code'      =>http_response_code(),
-                                'message'       =>'Login successfuly',
-                                'data'         => $data,
+                            $result = array_filter($transQuery);
+                            $res = $this->mysqlTQ($result);
+                            if($res){
+                                $return = array(
+                                    'isError'     => false,
+                                    // 'code'      =>http_response_code(),
+                                    'message'       =>'Login successfuly',
+                                    'data'         => $data,
+                                );
+                            }else{
+                                $return = array(
+                                'isError' => true,
+                                'data'=> $payload,
+                                // 'code'     =>http_response_code(),
+                                'message'   =>'Error login please try again..',
                             );
+                            }
                         } else {
-
-                            
-
                             $return = array(
                                 'isError' => true,
                                 'data'=> $payload,

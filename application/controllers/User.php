@@ -1,8 +1,5 @@
 <?php
-   /**
-     * @author  Adriene Care Llanos Amigable <adrienecarreamigable01@gmail.com>
-     * @version 0.1.0
-    */ 
+
 
     class User extends MY_Controller{
         /**
@@ -682,6 +679,13 @@
 
                 $subscription_data = $this->SubscriptionModel->get($payload_subsription,1);
                 $data['subscription'] = $subscription_data;
+                
+                $payload_free_subsription = array(
+                    'subscriptions.user_id'   => $response[0]->user_id,
+                    // 'subscriptions.is_active' => "P-Free",
+                );
+                $free_subscription_data = $this->SubscriptionModel->get($payload_free_subsription,0);
+                $data['already_subscribe'] = sizeof($free_subscription_data) > 0 ? true : false;
             }
             if($response[0]->user_type == "student"){
                                 
