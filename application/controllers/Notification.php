@@ -76,11 +76,12 @@ class Notification extends CI_Controller {
         $company_id = $data['company_id'] ?? null;
         $title = $data['title'] ?? '';
         $message = $data['message'] ?? '';
+        $job_offers_id = $data['job_offers_id'] ?? '';
       
-        if (empty($receive_by) || empty($created_by) || empty($company_id) || empty($title) || empty($message)) {
+        if (empty($receive_by) || empty($created_by) || empty($company_id) || empty($title) || empty($message) || empty($job_offers_id) ) {
             $return = [
                 'isError' => true,
-                'message' => 'All fields are required (receive_by, created_by, company_id, title, message)'
+                'message' => 'All fields are required (receive_by, created_by, company_id, title, message,job_offers_id)'
             ];
         } else {
             try {
@@ -90,6 +91,7 @@ class Notification extends CI_Controller {
                     'company_id' => $company_id,
                     'title' => $title,
                     'message' => $message,
+                    'job_offers_id' => $job_offers_id,
                     'is_read' => 0,
                     'created_at' => date('Y-m-d H:i:s')
                 ];

@@ -1,6 +1,4 @@
 <?php
-
-
 class Skills extends CI_Controller {
     /**
      * Class constructor.
@@ -16,7 +14,6 @@ class Skills extends CI_Controller {
      */
     public function get() {
         try {
-            // Retrieve data from the SkillsModel
             $categories = $this->SkillsModel->get_all();
             $return = array(
                 'isError' => false,
@@ -29,19 +26,17 @@ class Skills extends CI_Controller {
                 'message' => $e->getMessage(),
             );
         }
-        $this->response->output($return); // Return the JSON encoded data
+        $this->response->output($return);
     }
 
     /**
      * Create a new category.
      */
     public function create() {
-        // Retrieve data from request
         $data = json_decode(file_get_contents("php://input"), true);
         $name = $data['name'] ?? '';
         $description = $data['description'] ?? '';
 
-        // Validation checks
         if (empty($name)) {
             $return = array(
                 'isError' => true,
@@ -49,7 +44,6 @@ class Skills extends CI_Controller {
             );
         } else {
             try {
-                // Prepare data for inserting a new category
                 $payload = array(
                     'name' => $name,
                     'description' => $description,
@@ -57,10 +51,8 @@ class Skills extends CI_Controller {
                     'updated_at' => date('Y-m-d H:i:s'),
                 );
 
-                // Call the model's add method to insert the category
                 $category_id = $this->SkillsModel->add($payload);
 
-                // Return success or failure
                 if ($category_id) {
                     $return = array(
                         'isError' => false,
@@ -81,19 +73,18 @@ class Skills extends CI_Controller {
             }
         }
 
-        $this->response->output($return); // Return the JSON encoded data
+        $this->response->output($return);
     }
 
     /**
      * Update an existing category.
      */
     public function update() {
-        // Retrieve data from request
-        $category_id = $this->input->post('id');
-        $name = $this->input->post('name');
-        $description = $this->input->post('description');
+        $data = json_decode(file_get_contents("php://input"), true);
+        $category_id = $data['id'] ?? '';
+        $name = $data['name'] ?? '';
+        $description = $data['description'] ?? '';
 
-        // Validation checks
         if (empty($category_id)) {
             $return = array(
                 'isError' => true,
@@ -106,17 +97,14 @@ class Skills extends CI_Controller {
             );
         } else {
             try {
-                // Prepare data for updating the category
                 $payload = array(
                     'name' => $name,
                     'description' => $description,
                     'updated_at' => date('Y-m-d H:i:s'),
                 );
 
-                // Update the category using the model
                 $response = $this->SkillsModel->update($category_id, $payload);
 
-                // Return success or failure
                 if ($response) {
                     $return = array(
                         'isError' => false,
@@ -137,16 +125,16 @@ class Skills extends CI_Controller {
             }
         }
 
-        $this->response->output($return); // Return the JSON encoded data
+        $this->response->output($return);
     }
 
     /**
      * Delete a category.
      */
     public function delete() {
-        $category_id = $this->input->post('id');
+        $data = json_decode(file_get_contents("php://input"), true);
+        $category_id = $data['id'] ?? '';
 
-        // Validation checks
         if (empty($category_id)) {
             $return = array(
                 'isError' => true,
@@ -154,10 +142,8 @@ class Skills extends CI_Controller {
             );
         } else {
             try {
-                // Call the model to delete the category
                 $response = $this->SkillsModel->delete($category_id);
 
-                // Return success or failure
                 if ($response) {
                     $return = array(
                         'isError' => false,
@@ -177,7 +163,7 @@ class Skills extends CI_Controller {
             }
         }
 
-        $this->response->output($return); // Return the JSON encoded data
+        $this->response->output($return);
     }
 }
 ?>

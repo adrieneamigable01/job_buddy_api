@@ -41,7 +41,9 @@ class SkillsModel extends CI_Model {
      */
     public function delete($skills_id) {
         $this->db->where('id', $skills_id);
-        return $this->db->delete('skills');
+        return $this->db->update('skills',array(
+            'is_active' => 0
+        ));
     }
 
     /**
@@ -52,6 +54,7 @@ class SkillsModel extends CI_Model {
     public function get_all() {
         $this->db->select('id, name, description, created_at, updated_at');
         $this->db->from('skills');
+        $this->db->where('is_active',1);
         $this->db->order_by('created_at', 'DESC');
         $query = $this->db->get();
         return $query->result();
@@ -67,6 +70,7 @@ class SkillsModel extends CI_Model {
         $this->db->select('id, name, description, created_at, updated_at');
         $this->db->from('skills');
         $this->db->where('id', $skills_id);
+        $this->db->where('is_active',1);
         $query = $this->db->get();
         return $query->row();
     }

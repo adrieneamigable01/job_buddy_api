@@ -24,6 +24,7 @@ class NotificationModel extends CI_Model {
             c.company_name,
             n.title,
             n.message,
+            n.job_offers_id,
             n.is_read,
             n.created_at,
             

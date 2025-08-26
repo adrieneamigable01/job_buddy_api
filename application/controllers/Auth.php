@@ -250,7 +250,8 @@
             $skills                  = $data['skills'] ?? [];
             $course_id               = $data['course_id'] ?? null;
             $status                  = $data['status'] ?? null;
-            $preferred_available_time = $data['preferred_available_time'] ?? null;
+            $preferred_available_start_time = $data['preferred_available_start_time'] ?? null;
+            $preferred_available_end_time = $data['preferred_available_end_time'] ?? null;
         
             if (empty($user_type)) {
                 $return = ['isError' => true, 'message' => 'User type is required'];
@@ -293,7 +294,8 @@
                             'gender'     => $gender,
                             'is_active'  => 1,
                             'course_id'  => $course_id,
-                            'prefere_available_time' => $preferred_available_time,
+                            'prefere_available_start_time' => $preferred_available_start_time,
+                            'prefere_available_end_time' => $preferred_available_end_time,
                             'created_at' => $dateCreated,
                         ];
         

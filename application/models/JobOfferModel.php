@@ -58,6 +58,8 @@ class JobOfferModel extends CI_Model {
             job_offers.status,
             job_offers.company_overview,
             job_offers.qualifications,
+            job_offers.work_start,
+            job_offers.work_end,
         ');
         $this->db->from('job_offers');
         $this->db->join('company', 'job_offers.company_id = company.company_id', 'left'); // Left join to fetch admin details
@@ -107,7 +109,8 @@ class JobOfferModel extends CI_Model {
             students.updated_at,
             students.deleted_at,
             students.skills,
-            students.prefere_available_time,
+            students.prefere_available_start_time,
+            students.prefere_available_end_time,
             students.employment_type,
             students.course_id,
             courses.courses
@@ -132,7 +135,8 @@ class JobOfferModel extends CI_Model {
     private function rankCandidatesByAI($candidates, $criteria) {
         $requiredSkills = isset($criteria['skills']) ? array_map('strtolower', $criteria['skills']) : [];
         $requiredEmploymentType = strtolower($criteria['employment_type'] ?? '');
-        $requiredTime = strtolower($criteria['prefere_available_time'] ?? '');
+        $requiredStartTime = strtolower($criteria['prefere_available_start_time'] ?? '');
+        $requiredEndTime = strtolower($criteria['prefere_available_end_time'] ?? '');
         $requiredCourseId = $criteria['course_id'] ?? null;
     
         foreach ($candidates as &$candidate) {
@@ -194,7 +198,8 @@ class JobOfferModel extends CI_Model {
             students.updated_at,
             students.deleted_at,
             students.skills,
-            students.prefere_available_time,
+            students.prefere_available_start_time,
+            students.prefere_available_end_time,
             students.employment_type,
             students.course_id,
             courses.courses,
@@ -266,6 +271,7 @@ class JobOfferModel extends CI_Model {
                 strtolower($candidate['address'] ?? '')
             );
         }
+        
 
         return $this->rankCandidatesWithCohere($candidates, $criteria, $apiKey);
     }
@@ -327,40 +333,46 @@ class JobOfferModel extends CI_Model {
 
     private function rankCandidatesWithCohere($candidates, $criteria, $apiKey)
     {
-        $prompt = "You are an AI recruiter. Score candidates from 0 to 100 based on the following weights:
+        $prompt = "You are an AI recruiter. Score candidates from 0 to 100 based on these weights:
 
-    - Skills Match: 22.5%
-    - Experience Match: 22.5%
-    - Course Match: 20%
-    - Availability Match: 25%
-    - Location Proximity: 10%
+        - Practical Job Experience (past projects, certifications): 17%
+        - Skills Match (skills + skills from past jobs): 18%
+        - Course Compatibility (related coursework/field): 20%
+        - Time Availability & Distance (schedule + location): 45%
 
-    Details:
-    - `related_skills_score`: how well the candidate’s skills match the required skills
-    - `related_experience_score`: how often required skills were used in past jobs
-    - `location_proximity_score`: 0 (far), 5 (nearby), or 10 (same city)
+        Time Availability rules:
+        - If job is FULL-TIME, candidate must fully cover job work_start → work_end.
+        - If job is PART-TIME, candidate availability must overlap with job schedule.
 
-    Return JSON like:
-    [
-    {
-        \"student_id\": 1,
-        \"match_score\": 88,
-        \"reason\": \"Matched on skills, same city, and full availability.\"
-    }
-    ]
+        Details (from database):
+        - `practical_job_experience_score`: prior work experience relevancy
+        - `skills_score`: how well candidate’s skills match
+        - `course_compatibility_score`: course relevance
+        - `time_and_distance_score`: free time + proximity combined
+        - Candidate has fields: `prefere_available_start_time`, `prefere_available_end_time`
+        - Job has fields: `work_start`, `work_end`, `employment_type`
 
-    Only include candidates with a score of 50 or higher. 
+        Return JSON like:
+        [
+        {
+            \"student_id\": 1,
+            \"match_score\": 88,
+            \"reason\": \"Good skills match, relevant course, availability overlaps, same city.\"
+        }
+        ]
 
-    Job Criteria:
-    " . json_encode($criteria, JSON_PRETTY_PRINT) . "
+        Only include candidates with a score of 50 or higher. 
 
-    Candidates:
-    " . json_encode($candidates, JSON_PRETTY_PRINT);
+        Job Criteria:
+        " . json_encode($criteria, JSON_PRETTY_PRINT) . "
+
+        Candidates:
+        " . json_encode($candidates, JSON_PRETTY_PRINT);
 
         $postData = [
             'model' => 'command-r-plus',
             'prompt' => $prompt,
-            'max_tokens' => 1000,
+            'max_tokens' => 1200,
             'temperature' => 0.4
         ];
 
@@ -387,15 +399,25 @@ class JobOfferModel extends CI_Model {
 
         $rankedResults = json_decode($json, true);
 
-        // Step: Add full student details back into result
+        // Step: merge candidate details back
         $rankedWithDetails = [];
         foreach ($rankedResults as $ranked) {
             if ($ranked['match_score'] >= 50) {
                 foreach ($candidates as $candidate) {
                     if ($candidate['student_id'] == $ranked['student_id']) {
+                        // Add extra flag for availability check
+                        $isAvailable = $this->checkAvailability(
+                            $criteria['work_start'] ?? null,
+                            $criteria['work_end'] ?? null,
+                            $candidate['prefere_available_start_time'] ?? null,
+                            $candidate['prefere_available_end_time'] ?? null,
+                            $criteria['students.employment_type'] ?? null
+                        );
+
                         $rankedWithDetails[] = array_merge($candidate, [
-                            'match_score' => $ranked['match_score'],
-                            'match_reason' => $ranked['reason']
+                            'match_score'   => $ranked['match_score'],
+                            'match_reason'  => $ranked['reason'],
+                            'is_available'  => $isAvailable
                         ]);
                         break;
                     }
@@ -405,6 +427,30 @@ class JobOfferModel extends CI_Model {
 
         return $rankedWithDetails;
     }
+
+    /**
+     * Check availability with employment type logic
+     */
+    private function checkAvailability($jobStart, $jobEnd, $candStart, $candEnd, $employmentType)
+    {
+        if (!$jobStart || !$jobEnd || !$candStart || !$candEnd) {
+            return false;
+        }
+
+        $jobStartTime = strtotime($jobStart);
+        $jobEndTime   = strtotime($jobEnd);
+        $candStart    = strtotime($candStart);
+        $candEnd      = strtotime($candEnd);
+
+        if (strtolower($employmentType) === 'fulltime') {
+            // Must fully cover
+            return ($candStart <= $jobStartTime && $candEnd >= $jobEndTime);
+        } else {
+            // Part-time → overlap allowed
+            return ($candStart < $jobEndTime && $candEnd > $jobStartTime);
+        }
+    }
+
     
     public function rankJobOffersWithCohere($student, $jobOffers, $apiKey)
     {
@@ -548,7 +594,8 @@ class JobOfferModel extends CI_Model {
             students.updated_at,
             students.deleted_at,
             students.skills,
-            students.prefere_available_time,
+            students.prefere_available_start_time,
+            students.prefere_available_end_time,
             students.employment_type,
             students.course_id,
             courses.courses,
@@ -628,76 +675,103 @@ class JobOfferModel extends CI_Model {
 
     //     return $this->rankCandidatesWithCohere($rankedCandidates, $jobCriteria, $apiKey);
     // }
+    // public function getRankedCandidatesForJobOffer($jobCriteria, $allCandidates)
+    // {
+    //     $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne'; // Replace with real key
+
+    //     $filteredCandidates = [];
+    //     $requiredSkills = isset($jobCriteria['students.skills']) 
+    //         ? array_map('trim', explode(',', $jobCriteria['students.skills'])) 
+    //         : [];
+       
+    //     foreach ($allCandidates as $candidate) {
+    //         // --- Skill Score ---
+    //         $candidateSkills = $candidate['skills_array'] ?? [];
+    //         $matchedSkills = array_intersect($requiredSkills, $candidateSkills);
+    //         $relatedSkillsScore = count($requiredSkills) > 0 
+    //             ? round((count($matchedSkills) / count($requiredSkills)) * 100, 2) 
+    //             : 0;
+
+    //         // --- Experience Score ---
+    //         $experienceScore = 0;
+    //         foreach ($candidate['employment_history'] as $job) {
+    //             $jobSkills = $job['skills_used'] ?? [];
+    //             if (array_intersect($requiredSkills, $jobSkills)) {
+    //                 $experienceScore++;
+    //             }
+    //         }
+    //         $relatedExperienceScore = $experienceScore * 10;
+
+    //         // --- Location Score ---
+    //         $locationProximityScore = $this->getLocationProximityScore(
+    //             strtolower($jobCriteria['students.location'] ?? ''),
+    //             strtolower($candidate['address'] ?? '')
+    //         );
+
+    //         // --- Total Match Score ---
+    //         $totalScore = round(($relatedSkillsScore + $relatedExperienceScore + $locationProximityScore) / 3, 2);
+
+    //         // Attach scores
+    //         $candidate['related_skills_score'] = $relatedSkillsScore;
+    //         $candidate['related_experience_score'] = $relatedExperienceScore;
+    //         $candidate['location_proximity_score'] = $locationProximityScore;
+    //         $candidate['total_match_score'] = $totalScore;
+
+    //         // Keep candidates with score ≥ 50
+    //         if ($totalScore >= 50) {
+    //             $filteredCandidates[] = $candidate;
+    //         }
+
+    //         // Stop early if we reach 10 valid candidates
+    //         if (count($filteredCandidates) >= 10) {
+    //             break;
+    //         }
+    //     }
+
+      
+
+    //     // ✅ Fallback: If no one hit 50%, include the best ones (at least 1)
+    //     if (count($filteredCandidates) === 0 && count($allCandidates) > 0) {
+    //         // Sort all by total score and take top 1 or more
+    //         foreach ($allCandidates as &$candidate) {
+    //             if (!isset($candidate['total_match_score'])) {
+    //                 $candidate['total_match_score'] = 0; // Fallback value
+    //             }
+    //         }
+    //         usort($allCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
+    //         $filteredCandidates[] = $allCandidates[0]; // Always include at least one best candidate
+    //     }
+      
+
+    //     // Optional: Sort before sending to AI
+    //     usort($filteredCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
+
+    //     return $this->rankCandidatesWithCohere($filteredCandidates, $jobCriteria, $apiKey);
+    // }
+    
     public function getRankedCandidatesForJobOffer($jobCriteria, $allCandidates)
     {
-        $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne'; // Replace with real key
-
-        $filteredCandidates = [];
-        $requiredSkills = isset($jobCriteria['students.skills']) 
-            ? array_map('trim', explode(',', $jobCriteria['students.skills'])) 
-            : [];
-
-        foreach ($allCandidates as $candidate) {
-            // --- Skill Score ---
-            $candidateSkills = $candidate['skills_array'] ?? [];
-            $matchedSkills = array_intersect($requiredSkills, $candidateSkills);
-            $relatedSkillsScore = count($requiredSkills) > 0 
-                ? round((count($matchedSkills) / count($requiredSkills)) * 100, 2) 
-                : 0;
-
-            // --- Experience Score ---
-            $experienceScore = 0;
-            foreach ($candidate['employment_history'] as $job) {
-                $jobSkills = $job['skills_used'] ?? [];
-                if (array_intersect($requiredSkills, $jobSkills)) {
-                    $experienceScore++;
-                }
-            }
-            $relatedExperienceScore = $experienceScore * 10;
-
-            // --- Location Score ---
-            $locationProximityScore = $this->getLocationProximityScore(
-                strtolower($jobCriteria['students.location'] ?? ''),
-                strtolower($candidate['address'] ?? '')
-            );
-
-            // --- Total Match Score ---
-            $totalScore = round(($relatedSkillsScore + $relatedExperienceScore + $locationProximityScore) / 3, 2);
-
-            // Attach scores
-            $candidate['related_skills_score'] = $relatedSkillsScore;
-            $candidate['related_experience_score'] = $relatedExperienceScore;
-            $candidate['location_proximity_score'] = $locationProximityScore;
-            $candidate['total_match_score'] = $totalScore;
-
-            // Keep candidates with score ≥ 50
-            if ($totalScore >= 50) {
-                $filteredCandidates[] = $candidate;
-            }
-
-            // Stop early if we reach 10 valid candidates
-            if (count($filteredCandidates) >= 10) {
-                break;
-            }
-        }
-
-        // ✅ Fallback: If no one hit 50%, include the best ones (at least 1)
-        if (count($filteredCandidates) === 0 && count($allCandidates) > 0) {
-            // Sort all by total score and take top 1 or more
-            foreach ($allCandidates as &$candidate) {
-                if (!isset($candidate['total_match_score'])) {
-                    $candidate['total_match_score'] = 0; // Fallback value
-                }
-            }
-            usort($allCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
-            $filteredCandidates[] = $allCandidates[0]; // Always include at least one best candidate
-        }
-
-        // Optional: Sort before sending to AI
-        usort($filteredCandidates, fn($a, $b) => $b['total_match_score'] <=> $a['total_match_score']);
-
-        return $this->rankCandidatesWithCohere($filteredCandidates, $jobCriteria, $apiKey);
+        $apiKey = 'ku4pOcnw7HIGqQkdDCxYYx5OCCULrjH041yny4ne'; 
+        return $this->rankCandidatesWithCohere($allCandidates, $jobCriteria, $apiKey);
     }
+
+    /**
+     * Helper: check if candidate availability overlaps with job schedule
+     */
+    private function checkTimeOverlap($jobStart, $jobEnd, $candStart, $candEnd)
+    {
+        if (!$jobStart || !$jobEnd || !$candStart || !$candEnd) {
+            return false;
+        }
+
+        $jobStartTime = strtotime($jobStart);
+        $jobEndTime   = strtotime($jobEnd);
+        $candStart    = strtotime($candStart);
+        $candEnd      = strtotime($candEnd);
+
+        return ($candStart <= $jobStartTime && $candEnd >= $jobEndTime);
+    }
+
 
 
 

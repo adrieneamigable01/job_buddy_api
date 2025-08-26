@@ -303,12 +303,15 @@ class JobOffer extends MY_Controller {
             if ($userType === "employer" || $userType === "admin") {
                 // 🔁 Fetch all candidates once
                 $allCandidates = $this->JobOfferModel->getAllActiveCandidates();
-
+               
                 foreach ($jobOffers as &$jobOffer) {
                     $criteria = [
                         'students.skills' => $jobOffer->skills,
                         'students.employment_type' => $jobOffer->employment_type,
-                        'students.location' => $jobOffer->location
+                        'students.location' => $jobOffer->location,
+                        'students.course' => $jobOffer->course ?? null,   // add if job has course requirement
+                        'work_start' => $jobOffer->work_start ?? null,
+                        'work_end'   => $jobOffer->work_end ?? null,
                     ];
 
                     // ⚙️ Use refactored function to score/reuse candidates
@@ -425,6 +428,8 @@ class JobOffer extends MY_Controller {
         $employment_type = $data['employment_type'] ?? '';
         $company_overview = $data['company_overview'] ?? '';
         $qualifications = $data['qualifications'] ?? '';
+        $work_start = $data['work_start'] ?? '';
+        $work_end = $data['work_end'] ?? '';
         $employer_id = "";
         $user_id = "";
 
@@ -515,6 +520,18 @@ class JobOffer extends MY_Controller {
                 'message' => 'Qualification is required',
             );
         }
+        else if (empty($work_start)) {
+            $return = array(
+                'isError' => true,
+                'message' => 'Work start is required',
+            );
+        }
+        else if (empty($work_end)) {
+            $return = array(
+                'isError' => true,
+                'message' => 'Work end is required',
+            );
+        }
         else {
             try {
                 // Prepare the payload for inserting the job offer into the database.
@@ -531,6 +548,8 @@ class JobOffer extends MY_Controller {
                     'expired_at' => $expired_at,
                     'employment_type' => $employment_type,
                     'company_overview' => $company_overview,
+                    'work_start' => $work_start,
+                    'work_end' => $work_end,
                     'qualifications' => $qualifications,
                 );
 

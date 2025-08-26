@@ -108,7 +108,8 @@ class Student extends MY_Controller {
         $gender      = $data['gender'] ?? null;
         $skills      = $data['skills'] ?? null;
         $course_id      = $data['course_id'] ?? null;
-        $preferred_available_time      = $data['preferred_available_time'] ?? null;
+        $prefere_available_start_time      = $data['prefere_available_start_time'] ?? null;
+        $prefere_available_end_time      = $data['prefere_available_end_time'] ?? null;
         // Validation checks for student data
         if (empty($student_id)) {
             $return = array(
@@ -159,10 +160,16 @@ class Student extends MY_Controller {
                 'message' => 'Course is required',
             );
         }
-        else if (empty($preferred_available_time)) {
+        else if (empty($prefere_available_start_time)) {
             $return = array(
                 'isError' => true,
-                'message' => 'Prefered Available Time is required',
+                'message' => 'Prefered Available Start Time is required',
+            );
+        }
+        else if (empty($prefere_available_end_time)) {
+            $return = array(
+                'isError' => true,
+                'message' => 'Prefered Available Emnd Time is required',
             );
         }
         
@@ -182,7 +189,8 @@ class Student extends MY_Controller {
                     'employment_type' => $employment_type, // Include skills
                     'skills' => $skills, // Include skills
                     'course_id' => $course_id, // Include skills
-                    'prefere_available_time' => $preferred_available_time, // Include skills
+                    'prefere_available_start_time' => $prefere_available_start_time, // Include skills
+                    'prefere_available_end_time' => $prefere_available_end_time, // Include skills
                     'updated_at' => date("Y-m-d"),
                 );
 
@@ -403,7 +411,7 @@ class Student extends MY_Controller {
             'start_year'     => $data['start_year'],
             'end_year'       => $data['end_year'],
             'grade'          => $data['grade'] ?? null,
-            'activities'     => $data['activities'] ?? null,
+            // 'activities'     => $data['activities'] ?? null,
             'description'    => $data['description'] ?? null,
         ];
     
@@ -499,7 +507,7 @@ class Student extends MY_Controller {
             'start_year'     => $data['start_year'],
             'end_year'       => $data['end_year'],
             'grade'          => $data['grade'] ?? null,
-            'activities'     => $data['activities'] ?? null,
+            // 'activities'     => $data['activities'] ?? null,
             'description'    => $data['description'] ?? null,
         ];
     
