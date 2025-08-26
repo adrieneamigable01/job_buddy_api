@@ -956,6 +956,7 @@ class JobOffer extends MY_Controller {
                     'created_by' => $user_id,
                     'company_id' => $jobOffer->company_id,
                     'title' => "Job Offer for {$user}",
+                    'job_offer_id' => $job_offer_id,
                     'message' => $body,
                     'is_read' => 0,
                     'created_at' => date('Y-m-d H:i:s')
