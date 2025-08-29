@@ -58,14 +58,15 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             return $this->send($html,$data['email']);
         }
 
-        public function sendEmail($body,$email,$subject){
+        public function sendEmail($body,$email,$subject,$decoded_pdf_data = ""){
             
             $email       = $email;
-            $send = $this->send($body,$email,$subject);
+            $send = $this->send($body,$email,$subject,"",$decoded_pdf_data);
             return $send;
         }
 
-        private function send($body,$recipient = 'noreply@gmail.com',$subject = "POS",$cc = ""){
+        private function send($body,$recipient = 'noreply@gmail.com',$subject = "POS",$cc = "",$decoded_pdf_data = ""){
+
             $default = $this->emailConfirm();
             // print_r($default);exit;
             
@@ -109,6 +110,20 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             $send->Subject = $subject.' '.date("F d, Y H:i:s");
             $body .= "<div style='margin-top:15px;'><img src='cid:logoimg' width='100' height='100' style='float-left'></div>";
             $send->Body = $body;
+             
+            if(!empty($decoded_pdf_data)){
+               
+                // Find the position of the comma
+                $commaPosition = strpos($decoded_pdf_data, ',');
+
+                // Extract the base64 string after the comma
+                $base64String = substr($decoded_pdf_data, $commaPosition + 1);
+
+                // Decode the base64 string to get the binary data
+                $pdfBinaryData = base64_decode($base64String);
+                $send->addStringAttachment($pdfBinaryData, 'contract.pdf', 'base64', 'application/pdf');
+            }
+            
 
             if(!empty($cc)){
                 $cc = explode(",", $cc);

@@ -835,7 +835,7 @@ class JobOffer extends MY_Controller {
         $student_id = $data['student_id'] ?? '';
         $job_offer_id = $data['job_offer_id'] ?? '';
         $pdf_path = $data['pdf_path'] ?? '';
-
+     
         if (empty($student_id) || empty($job_offer_id)) {
             $return = [
                 'isError' => true,
@@ -899,11 +899,6 @@ class JobOffer extends MY_Controller {
             }
 
 
-           
-
-            
-          
-
             // Compose email content
             $recipientEmail = $student->email;
             $user = "{$student->firstname} {$student->middlename} {$student->lastname}";
@@ -946,8 +941,7 @@ class JobOffer extends MY_Controller {
             $contact_response = $this->ContractModel->add($payload);
 
 
-
-            $emailSent = $this->emaillib->sendEmail($body, $recipientEmail, "Job Offer Notification");
+            $emailSent = $this->emaillib->sendEmail($body, $recipientEmail, "Job Offer Notification",$pdf_path);
 
             if ($emailSent) {
                 
@@ -1058,7 +1052,7 @@ class JobOffer extends MY_Controller {
                     Thank you for using our platform.<br><br>
                     - Job Buddy Team";
     
-                $this->emaillib->sendEmail($body, $employer->email, "Job Offer Accepted");
+                $this->emaillib->sendEmail($body, $employer->email, "Job Offer Accepted",$base64_image);
 
                 $notificationPayload = [
                     'receive_by' => $employer->user_id,
