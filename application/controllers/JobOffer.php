@@ -861,6 +861,7 @@ class JobOffer extends MY_Controller {
         }
         $decoded = decode_jwt($token, $this->config->item('jwt_key'));
         $user_id = $decoded->data->user_information[0]->user_id ?? null;
+        $employer_email = $decoded->data->user_information[0]->email ?? null;
 
         try {
             // Check if already sent
@@ -941,7 +942,7 @@ class JobOffer extends MY_Controller {
             $contact_response = $this->ContractModel->add($payload);
 
 
-            $emailSent = $this->emaillib->sendEmail($body, $recipientEmail, "Job Offer Notification",$pdf_path);
+            $emailSent = $this->emaillib->sendEmail($body, $recipientEmail, "Job Offer Notification",$employer_email,$pdf_path);
 
             if ($emailSent) {
                 
@@ -1000,7 +1001,15 @@ class JobOffer extends MY_Controller {
             $job_offer_id = $data['job_offer_id'] ?? null;
             $base64_image = $data['base64_image'] ?? null;
             $status = "accepted";
-    
+
+            $headers = $this->input->request_headers();
+            $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+            if (strpos($token, 'Bearer ') === 0) {
+                $token = substr($token, 7);
+            }
+            $decoded = decode_jwt($token, $this->config->item('jwt_key'));
+            $student_email = $decoded->data->user_information[0]->email ?? null;
+           
             if (empty($student_id) || empty($job_offer_id)) {
                 $this->response->output([
                     'isError' => true,
@@ -1052,7 +1061,7 @@ class JobOffer extends MY_Controller {
                     Thank you for using our platform.<br><br>
                     - Job Buddy Team";
     
-                $this->emaillib->sendEmail($body, $employer->email, "Job Offer Accepted",$base64_image);
+                $this->emaillib->sendEmail($body, $employer->email, "Job Offer Accepted",$student->email,$base64_image);
 
                 $notificationPayload = [
                     'receive_by' => $employer->user_id,

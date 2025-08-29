@@ -58,14 +58,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             return $this->send($html,$data['email']);
         }
 
-        public function sendEmail($body,$email,$subject,$decoded_pdf_data = ""){
+        public function sendEmail($body,$email,$subject,$cc = "",$decoded_pdf_data = ""){
             
             $email       = $email;
-            $send = $this->send($body,$email,$subject,"",$decoded_pdf_data);
+            $send = $this->send($body,$email,$subject,$cc,$decoded_pdf_data);
             return $send;
         }
 
-        private function send($body,$recipient = 'noreply@gmail.com',$subject = "POS",$cc = "",$decoded_pdf_data = ""){
+        private function send($body,$recipient = 'noreply@gmail.com',$subject = "",$cc = "",$decoded_pdf_data = ""){
 
             $default = $this->emailConfirm();
             // print_r($default);exit;
@@ -126,10 +126,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             
 
             if(!empty($cc)){
-                $cc = explode(",", $cc);
-                for ($i=0; $i < sizeof($cc); $i++) { 
-                    $send->AddCC($cc[$i]);
-                }
+                // $cc = explode(",", $cc);
+                // for ($i=0; $i < sizeof($cc); $i++) { 
+                //     $send->AddCC($cc[$i]);
+                // }
+                 $send->AddCC($cc);
             }
            
             
